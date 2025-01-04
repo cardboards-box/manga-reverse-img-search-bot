@@ -398,3 +398,4 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+/src/MangaBox.Bot.Cli/Properties/launchSettings.json
