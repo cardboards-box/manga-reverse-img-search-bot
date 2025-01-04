@@ -1,0 +1,46 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35431.28
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MangaBox.Bot.Cli", "MangaBox.Bot.Cli\MangaBox.Bot.Cli.csproj", "{E5B17069-619A-423E-B5A0-9348CB993F48}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MangaBox.Bot.Core", "MangaBox.Bot.Core\MangaBox.Bot.Core.csproj", "{F413EDF4-6D65-45AF-95F8-FAF718504E08}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{5EEE6830-08CF-4B2F-A076-C1D8B5AAD2FF}"
+	ProjectSection(SolutionItems) = preProject
+		..\.gitignore = ..\.gitignore
+		..\.github\workflows\build.yaml = ..\.github\workflows\build.yaml
+		..\Dockerfile = ..\Dockerfile
+		..\LICENSE = ..\LICENSE
+		..\README.md = ..\README.md
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MangaBox.Bot", "MangaBox.Bot\MangaBox.Bot.csproj", "{B0076EF2-FAC3-4571-AA12-85F1E57E2E66}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E5B17069-619A-423E-B5A0-9348CB993F48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5B17069-619A-423E-B5A0-9348CB993F48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5B17069-619A-423E-B5A0-9348CB993F48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5B17069-619A-423E-B5A0-9348CB993F48}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F413EDF4-6D65-45AF-95F8-FAF718504E08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F413EDF4-6D65-45AF-95F8-FAF718504E08}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F413EDF4-6D65-45AF-95F8-FAF718504E08}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F413EDF4-6D65-45AF-95F8-FAF718504E08}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B0076EF2-FAC3-4571-AA12-85F1E57E2E66}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0076EF2-FAC3-4571-AA12-85F1E57E2E66}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0076EF2-FAC3-4571-AA12-85F1E57E2E66}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0076EF2-FAC3-4571-AA12-85F1E57E2E66}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {45ED7E7D-C33D-43A3-97D1-617DB21A3115}
+	EndGlobalSection
+EndGlobal
