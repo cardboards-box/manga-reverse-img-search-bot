@@ -88,6 +88,25 @@ docker pull ghcr.io/cardboards-box/manga-reverse-img-search-bot/bot:latest
 You can run the source code directly if you prefer that as well.
 Run the `MangaBox.Bot.Cli` project after filling in the `appsettings.json` file (or environment variables).
 
+Here is an example docker compose file you can use:
+```yaml
+services:
+  mb-bot:
+    image: ghcr.io/cardboards-box/manga-reverse-img-search-bot/bot:latest
+	restart: always
+	environment:
+	  - Discord:Token=${DISCORD_TOKEN}
+	  - Search:Api=${SEARCH_API}
+	  - Database:ConnectionString=Data Source=persist/database.db
+	volumes:
+	  - ./persist:/app/persist
+```
+.env file:
+```bash
+DISCORD_TOKEN=abcdefghijklmnopqrstuvqxyz.123456.1234567890abcdefghijklmnopqrstuv-xyz12
+SEARCH_API=https://some-api.com
+```
+
 ### Configuration
 You will need your own bot token (you can get those [here](https://discord.com/developers/applications) or Google it)
 
@@ -104,7 +123,7 @@ There are various configuration options that can be changed:
 * `Search:JoinLink` - Customize the link to add the bot to a server
 * `Search:Emotes` - A space or comma separated list of emotes to use for reactions
 
-You can edit the responses the bot gives by changing the following values:
+You can edit the default responses the bot gives by changing the following values:
 * `Search:Responses:Idiots` - The message to send when someone has requested something that's already been looked up
 	* Supports string-format option `{0}` for the user's discord ID (You can use this to mention the user)
 	* Example: `Uh, <@{0}>, it's right here...`
