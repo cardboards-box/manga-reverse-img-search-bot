@@ -93,13 +93,13 @@ Here is an example docker compose file you can use:
 services:
   mb-bot:
     image: ghcr.io/cardboards-box/manga-reverse-img-search-bot/bot:latest
-	restart: always
-	environment:
-	  - Discord:Token=${DISCORD_TOKEN}
-	  - Search:Api=${SEARCH_API}
-	  - Database:ConnectionString=Data Source=persist/database.db
-	volumes:
-	  - ./persist:/app/persist
+    restart: always
+    environment:
+      - Discord:Token=${DISCORD_TOKEN}
+      - Search:Api=${SEARCH_API}
+      - Database:ConnectionString=Data Source=persist/database.db
+    volumes:
+      - ./persist:/app/persist
 ```
 .env file:
 ```bash
