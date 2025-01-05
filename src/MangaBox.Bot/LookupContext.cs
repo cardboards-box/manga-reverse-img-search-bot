@@ -11,6 +11,7 @@
 /// <param name="ImageUrl">The URL of the image that was found (null if no image was found)</param>
 /// <param name="SourceMessage">The message the image was found in</param>
 /// <param name="InteractedMessage">The message that was interacted with</param>
+/// <param name="Config">The guild configuration</param>
 /// <remarks>
 /// If the image was found in the same message that triggered the bot then <paramref name="InteractedMessage"/> will be the same as <paramref name="SourceMessage"/>
 /// </remarks>
@@ -22,7 +23,8 @@ public record class LookupContext(
     string MessageId,
     string? ImageUrl,
     IMessage SourceMessage,
-    IMessage InteractedMessage)
+    IMessage InteractedMessage,
+    GuildConfig Config)
 {
     /// <summary>
     /// The reference to the message that triggered the request

@@ -25,16 +25,42 @@ public class GuildConfig : DbObject
     public string? MessageLoading { get; set; }
 
     /// <summary>
-    /// The channels for the white or black list
+    /// The message to send when the bot fails to download the image
     /// </summary>
-    [Column("channels")]
-    public string[] Channels { get; set; } = [];
+    [Column("message_download_failed")]
+    public string? MessageDownloadFailed { get; set; }
 
     /// <summary>
-    /// What to do with the <see cref="Channels"/> list
+    /// The message to send when the bot fails to find any results
     /// </summary>
-    [Column("channels_type")]
-    public ChannelType ChannelsType { get; set; } = ChannelType.None;
+    [Column("message_no_results")]
+    public string? MessageNoResults { get; set; }
+
+    /// <summary>
+    /// The message to send when the bot successfully finds results
+    /// </summary>
+    [Column("message_succeeded")]
+    public string? MessageSucceeded { get; set; }
+
+    /// <summary>
+    /// The message to send when an error occurs during lookup
+    /// </summary>
+    [Column("message_error")]
+    public string? MessageError { get; set; }
+
+    /// <summary>
+    /// All of the channels that are whitelisted for lookups
+    /// </summary>
+    /// <remarks>If empty, all channels will be whitelisted by default</remarks>
+    [Column("channels_whitelist")]
+    public string[] ChannelsWhitelist { get; set; } = [];
+
+    /// <summary>
+    /// All of the channels that are blacklisted for lookups
+    /// </summary>
+    /// <remarks>If empty, no channels will be blacklisted</remarks>
+    [Column("channels_blacklist")]
+    public string[] ChannelsBlacklist { get; set; } = [];
 
     /// <summary>
     /// The emotes that can be reacted with to request a lookup
@@ -46,18 +72,11 @@ public class GuildConfig : DbObject
     /// Whether or not to allow lookups via reactions
     /// </summary>
     [Column("emotes_enabled")]
-    public bool EmotesEnabled { get; set; }
+    public bool EmotesEnabled { get; set; } = true;
 
     /// <summary>
     /// Whether or not to allow lookups via pinging the bot
     /// </summary>
     [Column("pings_enabled")]
-    public bool PingsEnabled { get; set; }
-}
-
-public enum ChannelType
-{
-    None = 0,
-    WhiteList = 1,
-    BlackList = 2,
+    public bool PingsEnabled { get; set; } = true;
 }

@@ -41,7 +41,6 @@ public static class DiExtensions
             .AddSqlService(c => c
                 .ConfigureTypes(t => t
                     .TypeHandler<Guid, GuidHandler>()
-                    .HandleEnum<ChannelType>()
                     .PolyfillBooleanHandler()
                     .PolyfillDateTimeHandler()
                     .PolyfillGuidArrays()

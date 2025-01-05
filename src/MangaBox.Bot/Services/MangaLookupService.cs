@@ -11,8 +11,17 @@ public interface IMangaLookupService
     /// Download the image from the url, search for it, and then generate the embeds
     /// </summary>
     /// <param name="url">The image URL</param>
+    /// <param name="config">The configuration for the guild</param>
     /// <returns>The lookup results</returns>
-    Task<Lookup> Lookup(string url);
+    Task<Lookup> Lookup(string url, GuildConfig config);
+
+    /// <summary>
+    /// Get the configuration for the given guild
+    /// </summary>
+    /// <param name="guildId">The ID of the guild</param>
+    /// <returns>The config or defaults if no config exists</returns>
+    /// <remarks>Passing null as <paramref name="guildId"/> will always give defaults</remarks>
+    Task<GuildConfig> GetConfig(string? guildId);
 
     /// <summary>
     /// Get the lookup context from a reaction
@@ -42,6 +51,13 @@ public interface IMangaLookupService
     /// <param name="ctx">The lookup context</param>
     /// <param name="request">The previous lookup request</param>
     Task HandleIdiots(LookupContext ctx, LookupRequest request);
+
+    /// <summary>
+    /// Checks to see if the user executing the command has admin perms
+    /// </summary>
+    /// <param name="cmd">The slash command that was executed</param>
+    /// <returns>Whether or not the user is an admin</returns>
+    bool IsAdmin(SocketSlashCommand cmd);
 }
 
 internal class MangaLookupService(
@@ -56,32 +72,42 @@ internal class MangaLookupService(
 {
     private string[]? _botMentions;
 
-    public async Task<Lookup> Lookup(string url)
+    public bool IsAdmin(SocketSlashCommand cmd)
+    {
+        if (_config.AuthorizedUsers.Contains(cmd.User.Id.ToString()))
+            return true;
+
+        if (cmd.User is not SocketGuildUser user)
+            return false;
+
+        return user.GuildPermissions.ManageGuild;
+    }
+
+    public async Task<Lookup> Lookup(string url, GuildConfig config)
     {
         try
         {
             var local = await _file.DownloadImage(url);
             if (local is null)
-                return new(false, "I couldn't download the image!", []);
+                return new(false, config.MessageDownloadFailed!, []);
 
             var (io, filename) = local.Value;
             using var stream = io;
             var search = await _search.Search(io, filename);
             if (search is null)
-                return new(false, "I couldn't find any results that matched that image :(", []);
+                return new(false, config.MessageNoResults!, []);
 
             var embeds = _embed.GenerateEmbeds(search, url).ToArray();
             if (embeds.Length == 0)
-                return new(false, "I couldn't find any results that matched that image :(", []);
+                return new(false, config.MessageNoResults!, []);
 
-            return new(true, "Here you go:", embeds, search);
+            return new(true, config.MessageSucceeded!, embeds, search);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while looking up image: {url}", url);
             return new(false, 
-                "An error occurred while looking up the image :(\r\n" +
-                "Error Message: " + ex.Message, []);
+                string.Format(config.MessageError!, ex.Message), []);
         }
     }
 
@@ -145,16 +171,31 @@ internal class MangaLookupService(
         //Create a reference to the message the bot sent previously
         var rpl = new MessageReference(
             ulong.Parse(request.ResponseId), ctx.Channel.Id, ctx.Channel.Guild.Id);
-        //TODO: Load message from config
-        var output = $"Uh, <@{ctx.AuthorId}>, it's right here...";
+        //Generate the message calling the author an idiot
+        var output = string.Format(ctx.Config.MessageIdiots!, ctx.AuthorId);
         //Send message showing the author is an idiot
         await ctx.SourceMessage.Channel.SendMessageAsync(output,
             messageReference: rpl,
             allowedMentions: Mentions(PingType.JustMention));
     }
 
+    public static bool CheckLists(LookupContext ctx)
+    {
+        if (ctx.Config.ChannelsWhitelist.Length > 0)
+            return ctx.Config.ChannelsWhitelist.Contains(ctx.ChannelId);
+
+        if (ctx.Config.ChannelsBlacklist.Length > 0)
+            return !ctx.Config.ChannelsBlacklist.Contains(ctx.ChannelId);
+
+        return true;
+    }
+
     public async Task ProcessRequest(LookupContext ctx, PingType ping)
     {
+        //Ensure the channel isn't white/black listed.
+        if (!CheckLists(ctx)) return;
+        //If teh user has already reacted to this message, ignore them
+        if (await HasInteracted(ctx.MessageId, ctx.AuthorId)) return;
         //Check to see if someone has already looked up this message
         var existing = await _db.Request(ctx.MessageId);
         //If there is a result, call the person an idiot.
@@ -163,11 +204,8 @@ internal class MangaLookupService(
             await HandleIdiots(ctx, existing);
             return;
         }
-        //If we want to ping the user, we need to mention them
-        var pingUser = ping == PingType.JustMention || ping == PingType.All;
-        var author = pingUser ? $"<@{ctx.AuthorId}> " : "";
-        //TODO: Load message from config
-        var output = $"{author}<a:loading:1048471999065903244> Processing your request...";
+        //Get the loading message
+        var output = string.Format(ctx.Config.MessageLoading!, ctx.AuthorId);
         //Create a message to tell the user we're doing something
         var mod = await ctx.SourceMessage.Channel.SendMessageAsync(output,
             messageReference: ctx.ReplyingTo,
@@ -186,7 +224,7 @@ internal class MangaLookupService(
         //Insert the request into the database
         tracker.Id = await _db.Upsert(tracker);
         //Make the request to lookup the image source
-        var result = await Lookup(ctx.ImageUrl!);
+        var result = await Lookup(ctx.ImageUrl!, ctx.Config);
         //Update the request with the results of the lookup
         tracker.Results = _json.Serialize(result);
         //Update the database with the results
@@ -199,38 +237,62 @@ internal class MangaLookupService(
         });
     }
 
+    public async Task<GuildConfig> GetConfig(string? guildId)
+    {
+        var config = (string.IsNullOrEmpty(guildId) 
+            ? null 
+            : await _db.GuildConfig(guildId)) ?? new();
+        var messages = _config.Messages;
+
+        config.ChannelsWhitelist ??= [];
+        config.ChannelsBlacklist ??= [];
+        config.Emotes ??= [];
+        config.MessageIdiots = config.MessageIdiots?.ForceNull() ?? messages.Idiots;
+        config.MessageLoading = config.MessageLoading?.ForceNull() ?? messages.Loading;
+        config.MessageDownloadFailed = config.MessageDownloadFailed?.ForceNull() ?? messages.DownloadFailed;
+        config.MessageNoResults = config.MessageNoResults?.ForceNull() ?? messages.NoResults;
+        config.MessageSucceeded = config.MessageSucceeded?.ForceNull() ?? messages.Succeed;
+        config.MessageError = config.MessageError?.ForceNull() ?? messages.Error;
+
+        if (config.Emotes.Length == 0) config.Emotes = _config.Emotes;
+
+        return config;
+    }
+
     public async Task<LookupContext?> GetContext(CacheMessage message, SocketReaction reaction)
     {
-        SocketGuildChannel? IsTrigger()
+        bool IsTrigger(string[] emotes)
         {
-            //Ensure it was triggered in a guild
-            if (reaction.Channel is not SocketGuildChannel guild)
-                return null;
-            //Ensure the user is specified on the reaction
-            if (!reaction.User.IsSpecified)
-                return null;
-            //Ensure the reaction is not from a bot
-            if (reaction.User.Value.IsBot)
-                return null;
             var comp = StringComparison.InvariantCultureIgnoreCase;
-            //TODO: Load emotes from config
             //Check to see if any of the emotes match the config triggers
-            if (_config.Emotes.Any(t => t.Equals(reaction.Emote.Name, comp)))
-                return guild;
+            if (emotes.Any(t => t.Equals(reaction.Emote.Name, comp)))
+                return true;
             //Check to see if the server emote matches the config triggers
             if (reaction.Emote is Emote e)
             {
                 var marked = $"<{(e.Animated ? "a" : "")}:{e.Name}:{e.Id}>";
                 if (_config.Emotes.Any(t => t.Equals(marked, comp)))
-                    return guild;
+                    return true;
             }
-            //Emote doesn't match
-            return null;
+            //Not a valid emote
+            return false;
         }
 
-        //Sanity checks
-        var channel = IsTrigger();
-        if (channel is null) return null;
+        //Ensure it was triggered in a guild
+        if (reaction.Channel is not SocketGuildChannel channel)
+            return null;
+        //Ensure the user is specified on the reaction
+        if (!reaction.User.IsSpecified)
+            return null;
+        //Ensure the reaction is not from a bot
+        if (reaction.User.Value.IsBot)
+            return null;
+        //Get the guild ID from the channel
+        string guildId = channel.Guild.Id.ToString();
+        //Get the guild configuration 
+        var config = await GetConfig(guildId);
+        if (!config.EmotesEnabled || !IsTrigger(config.Emotes))
+            return null;
         //Get or download the cached message
         var msg = await message.GetOrDownloadAsync();
         if (msg is null) return null;
@@ -238,52 +300,44 @@ internal class MangaLookupService(
         var image = DetermineUrl(msg);
         //Pull out the IDs for various things
         string messageId = msg.Id.ToString(),
-            guildId = channel.Guild.Id.ToString(),
             channelId = channel.Id.ToString(),
             authorId = reaction.UserId.ToString();
-        //If the user has already reacted to this message, ignore them
-        if (await HasInteracted(messageId, authorId))
-            return null;
         //Return the context
-        return new(channel, guildId, channelId, authorId, messageId, image, msg, msg);
+        return new(channel, guildId, channelId, authorId, messageId, image, msg, msg, config);
     }
 
     public async Task<LookupContext?> GetContext(SocketMessage message)
     {
-        SocketGuildChannel? IsTrigger()
-        {
-            _botMentions ??=
-            [
-                $"<@{_client.CurrentUser.Id}>",
+        _botMentions ??=
+        [
+            $"<@{_client.CurrentUser.Id}>",
             $"<@!{_client.CurrentUser.Id}>"
-            ];
+        ];
 
-            //Ensure it was triggered in a guild
-            if (message.Channel is not SocketGuildChannel guild)
-                return null;
-            //Ensure the author isn't a bot
-            if (message.Author.IsBot)
-                return null;
-            //Ensure the message mentions the bot
-            if (!_botMentions.Any(t => message.Content.Contains(t, StringComparison.InvariantCultureIgnoreCase)))
-                return null;
-            //Message is a trigger
-            return guild;
-        }
-
-        //Sanity checks
-        var channel = IsTrigger();
-        if (channel is null) return null;
+        //Ensure it was triggered in a guild
+        if (message.Channel is not SocketGuildChannel channel)
+            return null;
+        //Ensure the author isn't a bot
+        if (message.Author.IsBot)
+            return null;
+        //Ensure the message mentions the bot
+        if (!_botMentions.Any(message.Content.ContainsIc))
+            return null;
+        //Get the guild ID from the channel
+        string guildId = channel.Guild.Id.ToString();
+        //Get the guild configuration 
+        var config = await GetConfig(guildId);
+        if (!config.PingsEnabled)
+            return null;
         //Pull out the IDs for various things
         string messageId = message.Id.ToString(),
-            guildId = channel.Guild.Id.ToString(),
             channelId = channel.Id.ToString(),
             authorId = message.Author.Id.ToString();
         //Check if the message contains an image url or attachment
         var image = DetermineUrl(message);
         //If there is an image, it's a direct request, so we can return the context
         if (!string.IsNullOrEmpty(image))
-            return new(channel, guildId, channelId, authorId, messageId, image, message, message);
+            return new(channel, guildId, channelId, authorId, messageId, image, message, message, config);
         //Check to see if the trigger message references another message
         if (message.Reference is null || !message.Reference.MessageId.IsSpecified)
             return null;
@@ -296,10 +350,7 @@ internal class MangaLookupService(
             return null;
         //Set the message ID to the referenced message
         messageId = msg.Id.ToString();
-        //If teh user has already reacted to this message, ignore them
-        if (await HasInteracted(messageId, authorId))
-            return null;
         //Return the context
-        return new(channel, guildId, channelId, authorId, messageId, image, msg, message);
+        return new(channel, guildId, channelId, authorId, messageId, image, msg, message, config);
     }
 }
