@@ -96,12 +96,19 @@ If you have comments, concerns, or questions, you can reach out [via this forum 
         await cmd.RespondAsync(bob.ToString());
     }
 
-    [Command("manga-config-responses", "Configures the response messages for the bot", 
-        Ephemeral = true, LongRunning = true)]
+    [Command("manga-config", "Configure general settings for manga lookups", Ephemeral = true, LongRunning = true)]
     public async Task Config(SocketSlashCommand cmd,
-        [MessageTypeOption] string message,
-        [Option("What to say (blank will reset)", false)] string? value)
+        [Option("Reaction Lookups", false, "Enabled", "Disable")] string? reactions,
+        [Option("Ping Lookups", false, "Enabled", "Disable")] string? pings,
+        [Option("Reaction Emotes (space separated - `reset` to reset)", false)] string? emotes)
     {
+        static string Channels(string[] listing)
+        {
+            if (listing.Length == 0) return "None";
+
+            return string.Join(" ", listing.Select(t => $"<#{t}>"));
+        }
+
         if (cmd.GuildId is null)
         {
             await cmd.Modify("This is only valid in discord servers!");
@@ -114,18 +121,67 @@ If you have comments, concerns, or questions, you can reach out [via this forum 
             return;
         }
 
-        var prop = typeof(GuildConfig).GetProperty(message);
-        if (prop is null)
+        var config = await _db.GuildConfig(cmd.GuildId.Value)
+            ?? new GuildConfig { GuildId = cmd.GuildId.Value.ToString() };
+
+        if (!string.IsNullOrWhiteSpace(reactions)) config.EmotesEnabled = reactions == "Enabled";
+        if (!string.IsNullOrWhiteSpace(pings)) config.PingsEnabled = pings == "Enabled";
+
+        if (!string.IsNullOrWhiteSpace(emotes) && emotes.Trim().EqualsIc("reset"))
         {
-            await cmd.Modify("Invalid message type");
-            return;
+            config.Emotes = [];
+            emotes = null;
         }
 
-        var config = await _db.GuildConfig(cmd.GuildId.Value) 
-            ?? new GuildConfig { GuildId = cmd.GuildId.Value.ToString() };
-        prop.SetValue(config, value.ForceNull());
+        if (!string.IsNullOrWhiteSpace(emotes))
+        {
+            var parts = emotes.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries);
+            foreach (var part in parts)
+            {
+                if (_emotes.IsEmote(part) ||
+                    _emotes.IsEmoji(part)) continue;
+
+                await cmd.Modify($"Invalid emote `{part}`");
+                return;
+            }
+            config.Emotes = parts;
+        }
+
         await _db.Upsert(config);
-        await cmd.Modify("Config updated!");
+
+        config = await _lookup.GetConfig(cmd.GuildId.ToString());
+
+        string channels = "all channels the bot can see";
+        if (config.ChannelsWhitelist.Length > 0)
+            channels = "only these channels: " + Channels(config.ChannelsWhitelist);
+        else if (config.ChannelsBlacklist.Length > 0)
+            channels = "all channels except these: " + Channels(config.ChannelsBlacklist);
+
+        await cmd.Modify(@$"{_config.Title} Configuration:
+Reaction lookups are {(config.EmotesEnabled ? "enabled" : "disabled")}.
+Bot ping lookups are {(config.PingsEnabled ? "enabled" : "disabled")}.
+The bot will react to these emotes: {string.Join(" ", config.Emotes)}.
+Lookups can be done in {channels} (does not effect slash commands).
+
+Here are the response messages:
+__**Duplicate lookups**__: ```
+{config.MessageIdiots}
+```
+__**Loading message**__: ```
+{config.MessageLoading}
+```
+__**Image download failed**__: ```
+{config.MessageDownloadFailed}
+```
+__**No results found**__: ```
+{config.MessageNoResults}
+```
+__**Results found**__: ```
+{config.MessageSucceeded}
+```
+__**Error Occurred**__: ```
+{config.MessageError}
+```");
     }
 
     [Command("manga-config-channels", "Configures the black/white list for channels that can be used for looking up manga", 
@@ -208,19 +264,12 @@ If you have comments, concerns, or questions, you can reach out [via this forum 
         await cmd.Modify($"Unknown action {action}");
     }
 
-    [Command("manga-config", "Configure general settings for manga lookups", Ephemeral = true, LongRunning = true)]
+    [Command("manga-config-responses", "Configures the response messages for the bot",
+        Ephemeral = true, LongRunning = true)]
     public async Task Config(SocketSlashCommand cmd,
-        [Option("Reaction Lookups", false, "Enabled", "Disable")] string? reactions,
-        [Option("Ping Lookups", false, "Enabled", "Disable")] string? pings,
-        [Option("Reaction Emotes (space separated - `reset` to reset)", false)] string? emotes)
+        [MessageTypeOption] string message,
+        [Option("What to say (blank will reset)", false)] string? value)
     {
-        static string Channels(string[] listing)
-        {
-            if (listing.Length == 0) return "None";
-
-            return string.Join(" ", listing.Select(t => $"<#{t}>"));
-        }
-
         if (cmd.GuildId is null)
         {
             await cmd.Modify("This is only valid in discord servers!");
@@ -233,66 +282,17 @@ If you have comments, concerns, or questions, you can reach out [via this forum 
             return;
         }
 
+        var prop = typeof(GuildConfig).GetProperty(message);
+        if (prop is null)
+        {
+            await cmd.Modify("Invalid message type");
+            return;
+        }
+
         var config = await _db.GuildConfig(cmd.GuildId.Value)
             ?? new GuildConfig { GuildId = cmd.GuildId.Value.ToString() };
-
-        if (!string.IsNullOrWhiteSpace(reactions)) config.EmotesEnabled = reactions == "Enabled";
-        if (!string.IsNullOrWhiteSpace(pings)) config.PingsEnabled = pings == "Enabled";
-
-        if (!string.IsNullOrWhiteSpace(emotes) && emotes.Trim().EqualsIc("reset"))
-        {
-            config.Emotes = [];
-            emotes = null;
-        }
-
-        if (!string.IsNullOrWhiteSpace(emotes))
-        {
-            var parts = emotes.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries);
-            foreach (var part in parts)
-            {
-                if (_emotes.IsEmote(part) ||
-                    _emotes.IsEmoji(part)) continue;
-                
-                await cmd.Modify($"Invalid emote `{part}`");
-                return;
-            }
-            config.Emotes = parts;
-        }
-
+        prop.SetValue(config, value.ForceNull());
         await _db.Upsert(config);
-
-        config = await _lookup.GetConfig(cmd.GuildId.ToString());
-
-        string channels = "all channels the bot can see";
-        if (config.ChannelsWhitelist.Length > 0)
-            channels = "only these channels: " + Channels(config.ChannelsWhitelist);
-        else if (config.ChannelsBlacklist.Length > 0)
-            channels = "all channels except these: " + Channels(config.ChannelsBlacklist);
-
-        await cmd.Modify(@$"{_config.Title} Configuration:
-Reaction lookups are {(config.EmotesEnabled ? "enabled" : "disabled")}.
-Bot ping lookups are {(config.PingsEnabled ? "enabled" : "disabled")}.
-The bot will react to these emotes: {string.Join(" ", config.Emotes)}.
-Lookups can be done in {channels} (does not effect slash commands).
-
-Here are the response messages:
-__**Duplicate lookups**__: ```
-{config.MessageIdiots}
-```
-__**Loading message**__: ```
-{config.MessageLoading}
-```
-__**Image download failed**__: ```
-{config.MessageDownloadFailed}
-```
-__**No results found**__: ```
-{config.MessageNoResults}
-```
-__**Results found**__: ```
-{config.MessageSucceeded}
-```
-__**Error Occurred**__: ```
-{config.MessageError}
-```");
+        await cmd.Modify("Config updated!");
     }
 }
