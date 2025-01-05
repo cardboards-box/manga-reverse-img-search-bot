@@ -30,7 +30,8 @@ internal class ChannelOptionAttribute : OptionAttribute
 internal class LookupCommand(
     IMangaLookupService _lookup,
     ILookupConfig _config,
-    ILookupDbService _db)
+    ILookupDbService _db,
+    IEmoteService _emotes)
 {
     public const string COMMAND_SEARCH = "manga-search";
     public const string COMMAND_SEARCH_PRIVATE = "manga-search-private";
@@ -249,7 +250,8 @@ If you have comments, concerns, or questions, you can reach out [via this forum 
             var parts = emotes.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries);
             foreach (var part in parts)
             {
-                if (Emote.TryParse(part, out var _)) continue;
+                if (_emotes.IsEmote(part) ||
+                    _emotes.IsEmoji(part)) continue;
                 
                 await cmd.Modify($"Invalid emote `{part}`");
                 return;

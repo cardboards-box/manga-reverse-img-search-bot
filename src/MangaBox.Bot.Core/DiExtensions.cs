@@ -56,6 +56,7 @@ public static class DiExtensions
             .AddTransient<ILookupDbService, LookupDbService>()
             .AddTransient<ISearchApiService, SearchApiService>()
             .AddTransient<IFileService, FileService>()
+            .AddTransient<IEmoteService, EmoteService>()
             .AddSingleton(c =>
             {
                 var config = c.GetRequiredService<IConfiguration>();
