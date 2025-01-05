@@ -1,5 +1,7 @@
 ﻿{
   "paths": [
-    "Tables/lookup_requests.sql"
+    "Tables/lookup_requests.sql",
+    "Tables/lookup_interactions.sql",
+    "Tables/guild_configs.sql"
   ]
 }

@@ -10,6 +10,8 @@ global using Dapper;
 global using Discord;
 global using Discord.WebSocket;
 
+global using System.Diagnostics.CodeAnalysis;
+
 global using System.Net;
 
 global using System.Text;
