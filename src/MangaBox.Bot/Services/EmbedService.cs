@@ -57,6 +57,13 @@ internal class EmbedService(ILookupConfig _config) : IEmbedService
     {
         if (search.BestGuess is null) return null;
 
+        var hasMatch = search.Match.FirstOrDefault(t => t.Manga is not null && t.Manga.Url == search.BestGuess.Url);
+        if (hasMatch is not null)
+        {
+            var fallback = MbMatch(hasMatch);
+            if (fallback is not null) return fallback;
+        }
+
         var embed = new EmbedBuilder()
             .WithTitle(search.BestGuess.Title)
             .WithUrl(search.BestGuess.Url)
