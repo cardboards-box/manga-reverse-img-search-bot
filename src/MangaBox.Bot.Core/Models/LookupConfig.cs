@@ -35,9 +35,9 @@ public class LookupConfig : ILookupConfig
     
     public const string DEFAULT_MESSAGE_IDIOTS = "Uh, <@{0}>, it's right here...";
     public const string DEFAULT_MESSAGE_LOADING = "<@{0}> <a:box_loading:1048471999065903244> Processing your request...";
-    public const string DEFAULT_MESSAGE_DOWNLOAD_FAILED = "I couldn't download the image!";
-    public const string DEFAULT_MESSAGE_NO_RESULTS = "I couldn't find any results that matched that image :(";
-    public const string DEFAULT_MESSAGE_SUCCEED = "Here you go:";
+    public const string DEFAULT_MESSAGE_DOWNLOAD_FAILED = "<@{0}> I couldn't download the image!";
+    public const string DEFAULT_MESSAGE_NO_RESULTS = "<@{0}> I couldn't find any results that matched that image :(";
+    public const string DEFAULT_MESSAGE_SUCCEED = "<@{0}> Here you go:";
     public const string DEFAULT_MESSAGE_ERROR = "An error occurred while looking up the image :(\r\nError Message: {0}";
 
     public static readonly string[] DEFAULT_EMOTES = ["🍝", "🔍", "🔎"];

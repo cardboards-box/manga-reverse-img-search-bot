@@ -148,7 +148,7 @@ internal class MangaLookupService(
                 return mentions;
             default:
                 mentions = AllowedMentions.All;
-                mentions.MentionRepliedUser = true;
+                mentions.MentionRepliedUser = false;
                 return mentions;
         }
     }
@@ -233,7 +233,7 @@ internal class MangaLookupService(
         await mod.ModifyAsync(t =>
         {
             t.Embeds = result.Embeds;
-            t.Content = result.Message;
+            t.Content = string.Format(result.Message, ctx.AuthorId);
         });
     }
 

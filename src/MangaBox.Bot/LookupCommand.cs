@@ -48,7 +48,7 @@ internal class LookupCommand(
         var result = await _lookup.Lookup(url, config);
         await cmd.ModifyOriginalResponseAsync(t =>
         {
-            t.Content = result.Message;
+            t.Content = string.Format(result.Message, cmd.User.Id);
             if (result.Embeds.Length > 0)
                 t.Embeds = result.Embeds;
         });
