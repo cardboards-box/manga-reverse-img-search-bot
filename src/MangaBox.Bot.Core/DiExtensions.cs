@@ -34,6 +34,21 @@ public static class DiExtensions
         return null;
     }
 
+    /// <summary>
+    /// Ensures the given string is at most the given length
+    /// </summary>
+    /// <param name="str">The string to check</param>
+    /// <param name="length">The max length of the string</param>
+    /// <param name="append">The string to append if the length is trimmed</param>
+    /// <returns>The ensured string</returns>
+    public static string? EnsureLength(this string? str, int length, string append = "...")
+    {
+        if (string.IsNullOrEmpty(str) || 
+            str.Length <= length) return str;
+
+        return str[..(length - append.Length)] + append;
+    }
+
     public static IServiceCollection AddCore(this IServiceCollection services, IConfiguration config)
     {
         var conString = config["Database:ConnectionString"] ?? "Data Source=database.db;";

@@ -65,11 +65,11 @@ internal class EmbedService(ILookupConfig _config) : IEmbedService
         }
 
         var embed = new EmbedBuilder()
-            .WithTitle(search.BestGuess.Title)
+            .WithTitle(search.BestGuess.Title.EnsureLength(EmbedBuilder.MaxTitleLength))
             .WithUrl(search.BestGuess.Url)
-            .WithDescription($"{search.BestGuess.Description}.")
+            .WithDescription(search.BestGuess.Description.EnsureLength(EmbedBuilder.MaxDescriptionLength))
             .WithThumbnailUrl(search.BestGuess.Cover)
-            .AddField("Tags", string.Join(", ", search.BestGuess.Tags))
+            .AddField("Tags", string.Join(", ", search.BestGuess.Tags).EnsureLength(EmbedFieldBuilder.MaxFieldValueLength))
             .AddField("Source", $"[{search.BestGuess.Source}]({search.BestGuess.Url})", true)
             .WithFooter(_config.Title)
             .WithCurrentTimestamp();
@@ -91,11 +91,11 @@ internal class EmbedService(ILookupConfig _config) : IEmbedService
         if (result.Manga == null) return null;
 
         var embed = new EmbedBuilder()
-            .WithTitle(result.Manga.Title)
+            .WithTitle(result.Manga.Title.EnsureLength(EmbedBuilder.MaxTitleLength))
             .WithUrl(result.Manga.Url)
             .WithThumbnailUrl(result.Manga.Cover)
-            .WithDescription($"{result.Manga.Description}")
-            .AddField("Tags", string.Join(", ", result.Manga.Tags))
+            .WithDescription(result.Manga.Description.EnsureLength(EmbedBuilder.MaxDescriptionLength))
+            .AddField("Tags", string.Join(", ", result.Manga.Tags).EnsureLength(EmbedFieldBuilder.MaxFieldValueLength))
             .AddField("Score", $"{result.Score:0.00}. (EM: {result.ExactMatch})", true)
             .WithFooter(_config.Title);
 
@@ -173,7 +173,9 @@ internal class EmbedService(ILookupConfig _config) : IEmbedService
         {
             if (count >= 5) break;
 
-            header.AddField(title, desc);
+            header.AddField(
+                title.EnsureLength(EmbedFieldBuilder.MaxFieldNameLength), 
+                desc.EnsureLength(EmbedFieldBuilder.MaxFieldValueLength));
             count++;
         }
 
