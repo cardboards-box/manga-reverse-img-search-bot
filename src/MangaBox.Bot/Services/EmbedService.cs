@@ -1,5 +1,10 @@
 ﻿namespace MangaBox.Bot.Services;
 
+using Core.Models.V1;
+using Core.Models.V2;
+using Core.Models.V2.Mb;
+using Core.Models.V2.SauceNao;
+
 /// <summary>
 /// A service for generating embeds from search results
 /// </summary>
@@ -12,17 +17,26 @@ public interface IEmbedService
     /// <param name="image">The URL of the image that was searched</param>
     /// <returns>All of the embeds to send</returns>
     IEnumerable<Embed> GenerateEmbeds(SearchResult result, string? image);
+
+	/// <summary>
+	/// Go through the search results to figure out the best thing to show on the embeds
+	/// </summary>
+	/// <param name="results">The image search results</param>
+	/// <param name="image">The URL of the image that was searched</param>
+	/// <returns>All of the embeds to send</returns>
+	IEnumerable<Embed> GenerateEmbeds(ImageSearchResult[] results, string? image);
 }
 
 internal class EmbedService(ILookupConfig _config) : IEmbedService
 {
-    /// <summary>
-    /// Go through the search results to figure out the best thing to show on the embeds
-    /// </summary>
-    /// <param name="result">The image search results</param>
-    /// <param name="image">The URL of the image that was searched</param>
-    /// <returns>All of the embeds to send</returns>
-    public IEnumerable<Embed> GenerateEmbeds(SearchResult result, string? image)
+	#region V1
+	/// <summary>
+	/// Go through the search results to figure out the best thing to show on the embeds
+	/// </summary>
+	/// <param name="result">The image search results</param>
+	/// <param name="image">The URL of the image that was searched</param>
+	/// <returns>All of the embeds to send</returns>
+	public IEnumerable<Embed> GenerateEmbeds(SearchResult result, string? image)
     {
         //Find the best match from MB-Match
         var fallback = result.Match
@@ -181,4 +195,100 @@ internal class EmbedService(ILookupConfig _config) : IEmbedService
 
         return count == 0 ? null : header.Build();
     }
+	#endregion
+
+	#region V2
+    /// <inheritdoc />
+	public IEnumerable<Embed> GenerateEmbeds(ImageSearchResult[] results, string? image)
+	{
+		if (results.Length == 0) yield break;
+
+		var exactMatch = results.FirstOrDefault(t => t.Exact && t.Closest is not null);
+        if (exactMatch is not null)
+        {
+            yield return ExactMatch(exactMatch.Closest!);
+            yield break;
+        }
+
+        var header = new EmbedBuilder()
+			.WithTitle("Manga Search Results")
+			.WithDescription("Here is what I found: ")
+			.WithFooter(_config.Title)
+			.WithCurrentTimestamp();
+
+		if (!string.IsNullOrWhiteSpace(image))
+			header.WithThumbnailUrl(image);
+
+        int count = 0;
+        foreach(var res in results.OrderByDescending(t => t.Score))
+        {
+            if (count >= 10) break;
+            if (res.Result is null) continue;
+
+            if (res.Result is VisionPage google)
+                header.AddField("Google-Vision", $"[{google.Title}]({google.Url})".EnsureLength(EmbedFieldBuilder.MaxFieldValueLength));
+            else if (res.Result is SauceResult sauce)
+			{
+				var url = sauce.Data?.ExternalUrls?.FirstOrDefault();
+				if (string.IsNullOrEmpty(url))
+					continue;
+
+				var title = "";
+                if (!string.IsNullOrEmpty(sauce.Data?.Title))
+                    title += sauce.Data.Title + " ";
+                title += sauce.MetaData.IndexName;
+
+                header.AddField("SauceNAO", $"[{title}]({url}) - (Score: {res.Score}, EM: {res.Exact})".EnsureLength(EmbedFieldBuilder.MaxFieldValueLength));
+            }
+            else continue;
+
+			count++;
+		}
+
+        if (count > 0)
+            yield return header.Build();
+
+        var top = results.Where(t => t.Closest is not null)
+            .OrderByDescending(t => t.Score)
+            .Take(3);
+
+        foreach(var res in top)
+            yield return ExactMatch(res.Closest!, 
+                e => e.AddField("Score", $"{res.Score} (EM: {res.Exact})", true),
+                res.Source);
+	}
+
+    public Embed ExactMatch(MangaBoxType<MbManga> manga, Action<EmbedBuilder>? config = null, string? via = null)
+    {
+        var title = manga.GetItem<MbMangaExt>()?.DisplayTitle ?? manga.Entity.Title;
+
+        var cover = manga.GetItems<MbImage>().MaxBy(t => t.Ordinal)?.Id;
+        var coverUrl = cover is not null ? $"https://v2.mangabox.app/image/{cover}" : null;
+        var tags = string.Join(", ", manga.GetItems<MbTag>().Select(t => t.Name)).EnsureLength(EmbedFieldBuilder.MaxFieldValueLength);
+        var source = manga.GetItem<MbSource>();
+
+		var bob = new EmbedBuilder()
+            .WithTitle(title.EnsureLength(EmbedBuilder.MaxTitleLength))
+            .WithUrl(manga.Entity.Url)
+            .WithDescription(manga.Entity.Description.EnsureLength(EmbedBuilder.MaxDescriptionLength / 4))
+            .WithFooter(_config.Title)
+            .WithCurrentTimestamp();
+           
+        if (!string.IsNullOrEmpty(coverUrl)) bob.WithThumbnailUrl(coverUrl);
+        if (!string.IsNullOrEmpty(tags)) bob.AddField("Tags", tags);
+        if (source is not null)
+        {
+            var name = source.Name;
+            if (!string.IsNullOrEmpty(via))
+                name += " (via " + via + ")";
+            bob.AddField("Source", $"[{name}]({manga.Entity.Url})", true);
+        }
+        bob.AddField("Rating", manga.Entity.ContentRating.ToString(), true);
+
+        if (config is not null) config(bob);
+        else bob.AddField("Score", "Exact Match", true);
+
+		return bob.Build();
+    }
+	#endregion
 }

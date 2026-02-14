@@ -4,7 +4,9 @@ public interface ILookupConfig
 {
     string Api { get; }
 
-    string UserAgent { get; }
+	string ApiV2 { get; }
+
+	string UserAgent { get; }
 
     string Title { get; }
 
@@ -43,6 +45,8 @@ public class LookupConfig : ILookupConfig
     public static readonly string[] DEFAULT_EMOTES = ["🍝", "🔍", "🔎"];
     
     public required string Api { get; init; }
+
+    public required string ApiV2 { get; init; }
 
     public required string UserAgent { get; init; }
 
@@ -86,14 +90,17 @@ public class LookupConfig : ILookupConfig
         var join = section[nameof(JoinLink)].ForceNull() ?? DEFAULT_JOIN_LINK;
         var api = section[nameof(Api)].ForceNull() 
             ?? throw new NullReferenceException("Config Missing for Search API Url");
-        var emotes = ArrayValues(section, nameof(Emotes), DEFAULT_EMOTES);
+		var apiV2 = section[nameof(ApiV2)].ForceNull()
+			?? throw new NullReferenceException("Config Missing for Search API V2 Url");
+		var emotes = ArrayValues(section, nameof(Emotes), DEFAULT_EMOTES);
         var authorized = ArrayValues(section, nameof(AuthorizedUsers), []);
         var messages = LookupConfigMessage.GetConfig(section.GetSection(nameof(Messages)));
 
         return new LookupConfig
         {
             Api = api,
-            UserAgent = ua,
+            ApiV2 = apiV2,
+			UserAgent = ua,
             Title = title,
             Emotes = emotes,
             JoinLink = join,

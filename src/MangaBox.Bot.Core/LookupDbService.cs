@@ -1,6 +1,7 @@
 ﻿namespace MangaBox.Bot.Core;
 
 using Models;
+using Models.V1;
 
 public interface ILookupDbService
 {

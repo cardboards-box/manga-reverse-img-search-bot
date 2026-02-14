@@ -1,4 +1,4 @@
-﻿namespace MangaBox.Bot.Core.Models;
+﻿namespace MangaBox.Bot.Core.Models.V1;
 
 public class SearchResult
 {

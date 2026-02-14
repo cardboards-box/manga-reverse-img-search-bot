@@ -93,15 +93,15 @@ internal class MangaLookupService(
 
             var (io, filename) = local.Value;
             using var stream = io;
-            var search = await _search.Search(io, filename);
-            if (search is null)
+            var search = await _search.SearchV2(io, filename);
+            if (search is null || !search.Success || search.Data is null || search.Data.Length == 0)
                 return new(false, config.MessageNoResults!, []);
 
-            var embeds = _embed.GenerateEmbeds(search, url).ToArray();
+            var embeds = _embed.GenerateEmbeds(search.Data, url).ToArray();
             if (embeds.Length == 0)
                 return new(false, config.MessageNoResults!, []);
 
-            return new(true, config.MessageSucceeded!, embeds, search);
+            return new(true, config.MessageSucceeded!, embeds, null, search.Data);
         }
         catch (Exception ex)
         {
