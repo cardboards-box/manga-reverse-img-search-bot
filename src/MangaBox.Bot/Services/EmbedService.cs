@@ -229,6 +229,8 @@ internal class EmbedService(ILookupConfig _config) : IEmbedService
                 header.AddField("Google-Vision", $"[{google.Title}]({google.Url})".EnsureLength(EmbedFieldBuilder.MaxFieldValueLength));
             else if (res.Result is SauceResult sauce)
 			{
+                if (res.Score <= 50) continue;
+
 				var url = sauce.Data?.ExternalUrls?.FirstOrDefault();
 				if (string.IsNullOrEmpty(url))
 					continue;
@@ -238,7 +240,7 @@ internal class EmbedService(ILookupConfig _config) : IEmbedService
                     title += sauce.Data.Title + " ";
                 title += sauce.MetaData.IndexName;
 
-                header.AddField("SauceNAO", $"[{title}]({url}) - (Score: {res.Score}, EM: {res.Exact})".EnsureLength(EmbedFieldBuilder.MaxFieldValueLength));
+                header.AddField("SauceNAO", $"[{title}]({url}) - (Score: {res.Score:0.00}, EM: {res.Exact})".EnsureLength(EmbedFieldBuilder.MaxFieldValueLength));
             }
             else continue;
 
@@ -254,7 +256,7 @@ internal class EmbedService(ILookupConfig _config) : IEmbedService
 
         foreach(var res in top)
             yield return ExactMatch(res.Closest!, 
-                e => e.AddField("Score", $"{res.Score} (EM: {res.Exact})", true),
+                e => e.AddField("Score", $"{res.Score:0.00} (EM: {res.Exact})", true),
                 res.Source);
 	}
 
